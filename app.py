@@ -2,89 +2,112 @@ import streamlit as st
 import numpy as np
 from scipy.stats import poisson
 
-# Configuration AI ULTRA-SNIPER v24.0 (Full Engine)
+# Configuration de la page
 st.set_page_config(page_title="AI ULTRA-SNIPER v24.0", layout="wide")
 
-st.title("🎯 AI ULTRA-SNIPER v24.0")
-st.markdown("---")
+# تصميم CSS مخصص لواجهة احترافية
+st.markdown("""
+    <style>
+    .main { background-color: #0e1117; color: white; }
+    .stMetric { background-color: #161b22; padding: 15px; border-radius: 10px; border: 1px solid #30363d; }
+    .advice-box { background-color: #238636; color: white; padding: 20px; border-radius: 15px; text-align: center; font-size: 24px; font-weight: bold; border: 2px solid #2ea043; }
+    .prediction-card { background-color: #0d1117; border: 1px solid #30363d; padding: 15px; border-radius: 10px; margin-bottom: 10px; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# 1. إدخال البيانات - Entrée des données
+st.title("🎯 AI ULTRA-SNIPER PRO v24.0")
+st.write("Analyse Algorithmique Avancée - Basé sur la Distribution de Poisson & Goal Expectancy")
+
+# --- Sidebar: Input des données ---
 with st.sidebar:
-    st.header("📋 Données des Équipes")
-    home_name = st.text_input("Équipe Domicile", "Home Team")
-    home_scored = st.number_input(f"Buteurs {home_name} (Moyenne)", value=1.5)
-    home_conceded = st.number_input(f"Encaissés {home_name} (Moyenne)", value=1.0)
+    st.header("📋 Paramètres du Match")
+    st.info("Saisissez les statistiques de saison pour les deux équipes.")
     
-    st.divider()
-    
-    away_name = st.text_input("Équipe Extérieur", "Away Team")
-    away_scored = st.number_input(f"Buteurs {away_name} (Moyenne)", value=1.2)
-    away_conceded = st.number_input(f"Encaissés {away_name} (Moyenne)", value=1.3)
+    with st.expander("🏠 Équipe Domicile", expanded=True):
+        home_name = st.text_input("Nom Domicile", "Altglienicke")
+        home_scored = st.number_input("Buts marqués (Moy)", value=1.42, step=0.1)
+        home_conceded = st.number_input("Buts encaissés (Moy)", value=1.19, step=0.1)
 
-# 2. الخوارزمية - Algorithme
-# حساب الأهداف المتوقعة بناءً على القوة الهجومية والدفاعية
+    with st.expander("🚀 Équipe Extérieur", expanded=True):
+        away_name = st.text_input("Nom Extérieur", "Eilenburg")
+        away_scored = st.number_input("Buts marqués (Moy) ", value=0.96, step=0.1)
+        away_conceded = st.number_input("Buts encaissés (Moy) ", value=1.74, step=0.1)
+
+# --- Calculs Algorithmiques ---
+# Goal Expectancy (Force Attaque A * Faiblesse Défense B)
 exp_home = (home_scored + away_conceded) / 2
 exp_away = (away_scored + home_conceded) / 2
 
-if st.button("🚀 ANALYSER LE MATCH"):
-    # مصفوفة الاحتمالات (Poisson Matrix)
-    h_probs = [poisson.pmf(i, exp_home) for i in range(7)]
-    a_probs = [poisson.pmf(i, exp_away) for i in range(7)]
-    matrix = np.outer(h_probs, a_probs)
+# Génération de la matrice de Poisson (jusqu'à 6 goals)
+h_probs = [poisson.pmf(i, exp_home) for i in range(7)]
+a_probs = [poisson.pmf(i, exp_away) for i in range(7)]
+matrix = np.outer(h_probs, a_probs)
 
-    # حساب الاحتمالات الأساسية
-    win_h = np.sum(np.tril(matrix, -1)) * 100
-    draw = np.sum(np.diag(matrix)) * 100
-    win_a = np.sum(np.triu(matrix, 1)) * 100
+# Probabilités 1X2
+p_home = np.sum(np.tril(matrix, -1)) * 100
+p_draw = np.sum(np.diag(matrix)) * 100
+p_away = np.sum(np.triu(matrix, 1)) * 100
 
-    # حساب Over/Under
-    over_1_5 = (1 - (matrix[0,0] + matrix[0,1] + matrix[1,0])) * 100
-    over_2_5 = (1 - np.sum([matrix[i,j] for i in range(3) for j in range(3-i)])) * 100
+# Probabilités Over/Under
+over_1_5 = (1 - (matrix[0,0] + matrix[0,1] + matrix[1,0])) * 100
+over_2_5 = (1 - np.sum([matrix[i,j] for i in range(3) for j in range(3-i)])) * 100
+over_3_5 = (1 - np.sum([matrix[i,j] for i in range(4) for j in range(4-i)])) * 100
+over_4_5 = (1 - np.sum([matrix[i,j] for i in range(5) for j in range(5-i)])) * 100
+
+# BTTS
+btts_yes = (1 - (h_probs[0] + a_probs[0] - (h_probs[0] * a_probs[0]))) * 100
+
+# --- Affichage des Résultats ---
+if st.button("📊 LANCER L'ANALYSE PROFONDE"):
     
-    # حساب BTTS (Yes)
-    btts_yes = (1 - (h_probs[0] + a_probs[0] - (h_probs[0] * a_probs[0]))) * 100
-
-    # العرض التنظيمي (UI Layout)
-    colA, colB, colC = st.columns(3)
+    col1, col2 = st.columns([2, 1])
     
-    with colA:
-        st.subheader("📊 Marché 1X2")
-        st.write(f"🏠 {home_name}: **{win_h:.1f}%** (Odd: {100/win_h:.2f})")
-        st.write(f"🤝 Nul: **{draw:.1f}%** (Odd: {100/draw:.2f})")
-        st.write(f"🚀 {away_name}: **{win_a:.1f}%** (Odd: {100/win_a:.2f})")
+    with col1:
+        st.subheader("📈 Probabilités de Match (1X2)")
+        c1, c2, c3 = st.columns(3)
+        c1.metric(f"🏠 {home_name}", f"{p_home:.1f}%", f"Odd: {100/p_home:.2f}")
+        c2.metric("🤝 Nul", f"{p_draw:.1f}%", f"Odd: {100/p_draw:.2f}")
+        c3.metric(f"🚀 {away_name}", f"{p_away:.1f}%", f"Odd: {100/p_away:.2f}")
 
-    with colB:
-        st.subheader("⚽ Buts (Plus/Moins)")
-        st.write(f"➕ 1.5 Goals: **{over_1_5:.1f}%**")
-        st.write(f"➕ 2.5 Goals: **{over_2_5:.1f}%**")
-        st.write(f"🔥 BTTS (Yes): **{btts_yes:.1f}%**")
+        st.subheader("⚽ Analyse des Buts (Plus/Moins)")
+        st.write(f"✅ **Plus de 1.5 Goals:** {over_1_5:.1f}% | **Plus de 2.5 Goals:** {over_2_5:.1f}%")
+        st.write(f"✅ **Plus de 3.5 Goals:** {over_3_5:.1f}% | **Plus de 4.5 Goals:** {over_4_5:.1f}%")
+        st.write(f"🔥 **Les deux équipes marquent (BTTS):** {'OUI' if btts_yes > 55 else 'NON'} ({btts_yes:.1f}%)")
 
-    with colC:
-        st.subheader("🔢 Scores Corrects")
-        # البحث عن أعلى قيمتين في المصفوفة
-        flat_indices = np.argsort(matrix.ravel())[-2:][::-1]
-        for idx in flat_indices:
-            h, a = np.unravel_index(idx, matrix.shape)
-            st.write(f"📍 Score: **{h} - {a}** (Prob: {matrix[h,a]*100:.1f}%)")
+    with col2:
+        st.subheader("📍 Scores Corrects")
+        # Top 3 scores
+        scores = []
+        for i in range(4):
+            for j in range(4):
+                scores.append((i, j, matrix[i,j]))
+        top_scores = sorted(scores, key=lambda x: x[2], reverse=True)[:2]
+        for s in top_scores:
+            st.info(f"Score: {s[0]} - {s[1]} | Prob: {s[2]*100:.1f}%")
 
-    # 3. النصيحة الذهبية الموثوقة - CONSEIL UNIQUE ET RENTABLE
-    st.divider()
-    st.subheader("💎 CONSEIL GOLD (ULTRA-SNIPER)")
+    # --- LE CONSEIL GOLD (L'Algorithme choisit le meilleur rهان) ---
+    st.markdown("---")
+    st.subheader("💎 CONSEIL ULTRA-SNIPER DU JOUR")
     
-    # منطق اختيار أفضل رهان بناءً على أعلى نسبة نجاح
-    predictions = {
-        f"Victoire {home_name}": win_h,
-        f"Victoire {away_name}": win_a,
-        "Double Chance 1X": win_h + draw,
-        "Double Chance X2": win_a + draw,
-        "Plus de 1.5 Buts": over_1_5,
-        "Plus de 2.5 Buts": over_2_5,
-        "Both Teams to Score": btts_yes
+    # Logic de sélection de la meilleure option
+    options = {
+        f"Victoire {home_name}": p_home,
+        f"Victoire {away_name}": p_away,
+        "Double Chance 1X": p_home + p_draw,
+        "Double Chance X2": p_away + p_draw,
+        "Plus de 1.5 Goals": over_1_5,
+        "Plus de 2.5 Goals": over_2_5,
+        "BTTS - OUI": btts_yes
     }
     
-    best_bet = max(predictions, key=predictions.get)
-    st.success(f"**LE MEILLEUR CHOIX : {best_bet}** | Fiabilité : {predictions[best_bet]:.1f}%")
-    st.info("💡 Ce conseil est généré après filtrage de 49 probabilités différentes.")
+    best_option = max(options, key=options.get)
+    
+    st.markdown(f"""
+        <div class="advice-box">
+            🚀 RÈHAN CONSEILLÉ : {best_option.upper()} <br>
+            <span style="font-size: 16px; font-weight: normal;">Indice de confiance : {options[best_option]:.1f}%</span>
+        </div>
+    """, unsafe_allow_html=True)
 
 st.markdown("---")
-st.caption("Copyright © 2026 ABDEALI NIFALI - Predict Nifali")
+st.caption("© 2026 ABDEALI NIFALI - Predict Nifali | Système d'analyse algorithmique v24.0")
